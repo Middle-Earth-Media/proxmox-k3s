@@ -1,0 +1,54 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  TF_VAR_proxmox_api_url: ${{ secrets.PROXMOX_API_URL }}
+  TF_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
+  TF_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
+
+jobs:
+  terraform_plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2.0.0
+
+    - name: Check Terraform version
+      run: terraform version
+
+    - name: Terraform Format
+      id: fmt
+      run: terraform fmt -check
+      continue-on-error: true
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color -input=false
+      continue-on-error: true
+
+    - name: Terraform Plan Status
+      if: steps.plan.outcome == 'failure'
+      run: exit 1
+
+    #- name: Terraform Apply
+    #  if: github.ref == 'refs/head/main' && github.event_name == 'push'
+    #  run: terraform apply --auto-approve
+    #- name: Remove credentials file
+    #  run: rm -f credentials.auto.tfvars
